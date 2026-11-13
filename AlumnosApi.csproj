@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.*" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.*" />
+  </ItemGroup>
+
+  <!-- Excluir del Explorador de Soluciones -->
+  <ItemGroup>
+    <Folder Include="Connected Services\**" Exclude="**" />
+    <Folder Include="Dependencies\**" Exclude="**" />
+    <Folder Include="BuildHost-**\**" Exclude="**" />
+  </ItemGroup>
+
+  <!-- Ocultar archivos de configuración innecesarios -->
+  <ItemGroup>
+    <None Update=".gitignore" Visible="false" />
+    <None Update="appsettings.json" Visible="False" />
+    <None Update="Directory.Build.props" Visible="false" />
+  </ItemGroup>
+
+  <!-- Cierra una instancia anterior de la API para que no bloquee el .exe al compilar -->
+  <Target Name="CerrarApiAnterior" BeforeTargets="BeforeBuild" Condition="'$(OS)' == 'Windows_NT'">
+    <Exec Command="taskkill /F /IM AlumnosApi.exe" ContinueOnError="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" />
+  </Target>
+
+</Project>

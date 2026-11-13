@@ -1,0 +1,30 @@
+## Build results
+build/
+bin/
+obj/
+
+## IDE
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.iml
+.idea/
+
+## Visual Studio cache/options
+.vs/
+*.resharper
+
+## Environment
+.env
+appsettings.Development.json
+appsettings.Production.json
+
+## System
+.DS_Store
+Thumbs.db
+
+## Generated folders (can be deleted safely)
+## These folders are in build/ and can be regenerated
+
+desktop.ini
