@@ -1,0 +1,15 @@
+@echo off
+echo ==========================================
+echo 1. Ejecutando script de Base de Datos...
+echo ==========================================
+
+REM Ajusta esta línea con el comando exacto que ya usas para crear las tablas
+sqlcmd -S "(localdb)\MSSQLLocalDB" -i "basedatosAlumnos_creacion.sql"
+
+echo.
+echo ==========================================
+echo 2. Iniciando la API de Alumnos (.NET)...
+echo ==========================================
+
+cd /d "%~dp0..\AlumnosApi"
+dotnet run

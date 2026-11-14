@@ -51,7 +51,8 @@ var app = builder.Build();
 // 🔒 Redirección HTTPS
 // Si alguien intenta conectar por HTTP, lo redirige automáticamente a HTTPS
 // Esto mejora la seguridad de la comunicación
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection(); //y bloquea el celular conectado por usb
+
 
 // 📖 Activar Swagger
 // - UseSwagger: Genera el archivo JSON con la documentación

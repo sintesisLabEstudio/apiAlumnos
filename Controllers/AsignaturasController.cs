@@ -37,4 +37,19 @@ public class AsignaturasController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(asignatura);
     }
+    [HttpPut]
+    public async Task<IActionResult> Editar(Asignatura asignatura)
+    {
+        if (string.IsNullOrWhiteSpace(asignatura.NomAsignatura))
+            return BadRequest("El nombre de la asignatura es obligatorio.");
+        var nombre = asignatura.NomAsignatura.Trim();
+        var existente = await _db.Asignaturas.FirstOrDefaultAsync(a => a.IdAsignatura == asignatura.IdAsignatura);
+        if (existente == null)
+            return NotFound("La asignatura no existe.");
+        if (await _db.Asignaturas.AnyAsync(a => a.NomAsignatura == nombre && a.IdAsignatura != asignatura.IdAsignatura))
+            return Conflict("Ya existe una asignatura con ese nombre.");
+        existente.NomAsignatura = nombre;
+        await _db.SaveChangesAsync();
+        return Ok(existente);
+    }
 }

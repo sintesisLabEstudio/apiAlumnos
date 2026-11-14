@@ -124,4 +124,17 @@ public class AlumnosController : ControllerBase
         // Devuelve el objeto alumno que se acaba de crear (con sus datos)
         return Ok(alumno);
     }
+    [HttpPut]
+    public async Task<IActionResult> editarAlumno(Alumno alumno)
+    {
+        if (string.IsNullOrWhiteSpace(alumno.Nombres) || string.IsNullOrWhiteSpace(alumno.Apellidos))
+            return BadRequest("Nombres y apellidos son obligatorios.");
+        var existente = await _db.Alumnos.FirstOrDefaultAsync(a => a.CodAlumno == alumno.CodAlumno);
+        if (existente == null)
+            return NotFound($"No existe un alumno con código {alumno.CodAlumno}.");
+        existente.Nombres = alumno.Nombres.Trim();
+        existente.Apellidos = alumno.Apellidos.Trim();
+        await _db.SaveChangesAsync();
+        return Ok(existente);
+    }
 }
