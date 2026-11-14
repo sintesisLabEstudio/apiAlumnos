@@ -1,0 +1,20 @@
+https://claude.ai/chat/14cfee02-219b-4606-b00b-d4eaab3df0d1
+
+https://gemini.google.com/app/78def8d562f01e0f
+
+yonarev claude alimentado
+https://claude.ai/chat/53ce8fd2-bece-42ef-a91f-aaf7a0da9a46
+
+Microsoft.EntityFrameworkCore
+Microsoft.AspNetCore.Mvc
+AlumnosApi.Data
+using AlumnosApi.Models
+
+
+ASP .net core web ap
+api web restfull con controladores asp.net core o api minimas
+multiplataforma
+.NET 10 compatibilidad a largo plazo
+para https
+editor swagger para visualizar y editar la base
+por medio de la API

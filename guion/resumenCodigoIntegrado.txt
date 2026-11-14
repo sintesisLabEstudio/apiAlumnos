@@ -1,0 +1,93 @@
+Resumen de integracion: Aplicacion Kotlin (Android), API C# (ASP.NET Core) y SQL Server
+Archivo: resumenCodigoIntegrado.txt
+Ruta: C:\desarrollo\tnt\notasAlumnoAsignatura\resumenCodigoIntegrado.txt
+Descripcion: Explicacion con diagramas de como se relacionan la app movil Kotlin, la API en C# y la base de datos SQL Server.
+Diagrama 1 - Arquitectura general de componentes
++-------------------------------+        HTTP/JSON (Retrofit + Gson)        +--------------------------------------+        EF Core (AlumnosContext)        +-----------------------------+
+| App Android (Kotlin)          | ----------------------------------------> | API REST AlumnosApi (C# ASP.NET Core) | ------------------------------------> | SQL Server / LocalDB        |
+| - UI: Activities y Layouts    | <---------------------------------------- | - Controllers: Alumnos/Asignaturas/   | <------------------------------------ | BD: baseDatosAlumnos        |
+| - RetrofitClient (ApiService) |         Respuestas JSON / codigos HTTP    |   Notas                               |          Datos de tablas/consultas     | Tablas: ALUMNOS,            |
+| - Models DTO (AlumnoDto, etc.)|                                           | - Data: AlumnosContext (DbContext)    |                                       | ASIGNATURAS, NOTAS          |
+| - Corrutinas (IO/Main)        |                                           | - Models: Alumno, Asignatura, Nota    |                                       |                             |
++-------------------------------+                                           +--------------------------------------+                                       +-----------------------------+
+Diagrama 2 - Flujo de una operacion tipica (ejemplo: ingresar nota)
+[Usuario en NotaActivity]
+        |
+        v
+[Selecciona alumno/asignatura/numero y escribe nota]
+        |
+        v
+[NotaActivity.ingresarNota() valida datos]
+        |
+        v
+[RetrofitClient.api.crearNota(NotaDto)] --POST /api/notas (JSON)--> [NotasController.Ingresar]
+        |                                                                      |
+        |                                                                      v
+        |                                                            [Valida datos y existencia
+        |                                                             de alumno/asignatura]
+        |                                                                      |
+        |                                                                      v
+        |                                                            [_db.Notas.Add + SaveChanges]
+        |                                                                      |
+        |                                                                      v
+        |                                                            [AlumnosContext / EF Core]
+        |                                                                      |
+        |                                                                      v
+        |                                                                [SQL Server: tabla NOTAS]
+        |                                                                      |
+        |<------------------- Respuesta HTTP (OK/Error) <----------------------+
+        v
+[RetrofitClient.guardar interpreta respuesta]
+        |
+        v
+[UI muestra mensaje y refresca nota correspondiente]
+Diagrama 3 - Endpoints de la API y su consumo desde Kotlin
++-------------------------------+-------------------------------+-------------------------------+-----------------------------------------------+
+| Modulo Kotlin (cliente)       | Metodo ApiService (Retrofit)  | Endpoint API C#               | Operacion en base de datos                    |
++-------------------------------+-------------------------------+-------------------------------+-----------------------------------------------+
+| ListaAlumnos/Nota/EditarNota  | listarAlumnos()               | GET  /api/alumnos             | SELECT de ALUMNOS                             |
+| AlumnoActivity                | crearAlumno(...)              | POST /api/alumnos             | INSERT en ALUMNOS                             |
+| ListaAlumnos (modo edicion)   | editarAlumno(...)             | PUT  /api/alumnos             | UPDATE en ALUMNOS                             |
+| ListaAsignaturas/Nota/etc.    | listarAsignaturas()           | GET  /api/asignaturas         | SELECT de ASIGNATURAS                         |
+| AsignaturaActivity            | crearAsignatura(...)          | POST /api/asignaturas         | INSERT en ASIGNATURAS                         |
+| ListaAsignaturas (edicion)    | editarAsignatura(...)         | PUT  /api/asignaturas         | UPDATE en ASIGNATURAS                         |
+| NotaActivity                  | crearNota(...)                | POST /api/notas               | INSERT en NOTAS                               |
+| EditarNotaActivity            | editarNota(...)               | PUT  /api/notas               | UPDATE en NOTAS                               |
+| Listado/Resumen/Nota/Editar   | listado()                     | GET  /api/notas/listado       | JOIN NOTAS+ALUMNOS+ASIGNATURAS y calculos     |
++-------------------------------+-------------------------------+-------------------------------+-----------------------------------------------+
+Diagrama 4 - Modelo de datos y mapeo entre capas
+[Kotlin DTOs]                         [C# Models / EF Entities]                 [SQL Server Tablas]
+AlumnoDto                             Alumno                                    ALUMNOS
+  - codAlumno  <------------------>     - CodAlumno  <----------------------->   - COD_ALUMNO (PK)
+  - nombres    <------------------>     - Nombres    <----------------------->   - NOMBRES
+  - apellidos  <------------------>     - Apellidos  <----------------------->   - APELLIDOS
+AsignaturaDto / AsignaturaNueva       Asignatura                                ASIGNATURAS
+  - idAsignatura <---------------->     - IdAsignatura <--------------------->   - ID_ASIGNATURA (PK, IDENTITY)
+  - nomAsignatura <--------------->     - NomAsignatura <-------------------->   - NOM_ASIGNATURA (UNIQUE)
+NotaDto                               Nota                                      NOTAS
+  - codAlumno  <------------------>     - CodAlumno  <----------------------->   - COD_ALUMNO (FK -> ALUMNOS)
+  - idAsignatura <---------------->     - IdAsignatura <--------------------->   - ID_ASIGNATURA (FK -> ASIGNATURAS)
+  - nNota      <------------------>     - NNota      <----------------------->   - N_NOTA (1..3)
+  - nota       <------------------>     - Valor [JsonPropertyName("nota")] <->   - NOTA (decimal(2,1))
+ListadoNota (Kotlin, @SerializedName) recibe respuesta del endpoint /api/notas/listado:
+  - COD_ALUMNO, NOMBRE_COMPLETO, NOM_ASIGNATURA, NOTA_1..NOTA_3, PROMEDIO (calculado en API cuando hay 3 notas).
+Diagrama 5 - Relaciones en la base de datos
++------------------+           1        N           +------------------+
+| ALUMNOS          |------------------------------->| NOTAS            |
+| COD_ALUMNO (PK)  |                                | ID_NOTA (PK)     |
+| NOMBRES          |                                | COD_ALUMNO (FK)  |
+| APELLIDOS        |                                | ID_ASIGNATURA(FK)|
++------------------+                                | N_NOTA           |
+                                                    | NOTA             |
++------------------+           1        N           +------------------+
+| ASIGNATURAS      |------------------------------->| (misma tabla     |
+| ID_ASIGNATURA(PK)|                                |  NOTAS)          |
+| NOM_ASIGNATURA   |                                |                  |
++------------------+                                +------------------+
+Relacion: Un alumno puede tener muchas notas; una asignatura puede tener muchas notas; cada nota pertenece a un alumno y a una asignatura.
+Notas clave de integracion
+- La app Kotlin (codigoKotlin) actua como cliente: construye peticiones con Retrofit/OkHttp, serializa/deserializa JSON con Gson y ejecuta red en Dispatchers.IO.
+- RetrofitClient define la URL base (http://10.0.2.2:50555/ en emulador o http://127.0.0.1:50555/ en dispositivo con adb reverse) apuntando a la API C#.
+- La API C# (AlumnosApi) expone endpoints REST en Controllers, aplica validaciones/reglas de negocio y usa Entity Framework Core (AlumnosContext) para persistencia.
+- SQL Server/LocalDB almacena los datos en baseDatosAlumnos (tablas ALUMNOS, ASIGNATURAS, NOTAS) segun scripts de creacion y la cadena de conexion en appsettings.
+- El flujo completo es: UI Kotlin -> DTO/HTTP -> Controller C# -> EF Core -> SQL Server y la respuesta vuelve por el mismo camino en formato JSON.

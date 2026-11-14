@@ -1,0 +1,1832 @@
+﻿Archivo: ApiService.kt
+Ruta: app/src/main/java/com/tnt/notas/ApiService.kt
+Descripcion: Interfaz Retrofit que define los endpoints HTTP de la API REST para operaciones de alumnos, asignaturas y notas, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones necesarias para manejar respuestas HTTP y anotaciones de Retrofit.
+import okhttp3.ResponseBody
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.PUT
+// Interfaz que define los endpoints de la API REST consumidos por la app.
+interface ApiService {
+    // Obtiene la lista completa de alumnos.
+    @GET("api/alumnos")
+    suspend fun listarAlumnos(): Response<List<AlumnoDto>>
+    // Crea un nuevo alumno enviando sus datos en el cuerpo de la solicitud.
+    @POST("api/alumnos")
+    suspend fun crearAlumno(@Body alumno: AlumnoDto): Response<ResponseBody>
+    // Obtiene la lista completa de asignaturas.
+    @GET("api/asignaturas")
+    suspend fun listarAsignaturas(): Response<List<AsignaturaDto>>
+    // Crea una nueva asignatura enviando su nombre.
+    @POST("api/asignaturas")
+    suspend fun crearAsignatura(@Body asignatura: AsignaturaNueva): Response<ResponseBody>
+    // Registra una nueva nota para un alumno y asignatura.
+    @POST("api/notas")
+    suspend fun crearNota(@Body nota: NotaDto): Response<ResponseBody>
+    // Actualiza una nota existente.
+    @PUT("api/notas")
+    suspend fun editarNota(@Body nota: NotaDto): Response<ResponseBody>
+    // Obtiene el listado consolidado de notas por alumno y asignatura.
+    @GET("api/notas/listado")
+    suspend fun listado(): Response<List<ListadoNota>>
+    // Actualiza los datos de un alumno existente.
+    @PUT("api/alumnos")
+    suspend fun editarAlumno(@Body alumno: AlumnoDto): Response<ResponseBody>
+    // Actualiza los datos de una asignatura existente.
+    @PUT("api/asignaturas")
+    suspend fun editarAsignatura(@Body asignatura: AsignaturaDto): Response<ResponseBody>
+}
+Archivo: RetrofitClient.kt
+Ruta: app/src/main/java/com/tnt/notas/RetrofitClient.kt
+Descripcion: Objeto singleton que configura Retrofit y OkHttp, gestiona la URL base y la ejecucion de llamadas, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para detectar entorno, corrutinas, cliente HTTP y Retrofit.
+import android.os.Build
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
+// Objeto singleton que centraliza la configuracion y uso del cliente de la API.
+object RetrofitClient {
+    // Define el host segun si la app corre en emulador o en dispositivo fisico.
+    private val host: String = if (esEmulador()) "10.0.2.2" else "127.0.0.1"
+    // URL base de la API REST.
+    val BASE_URL = "http://$host:50555/"
+    // Detecta si el entorno actual corresponde a un emulador Android.
+    private fun esEmulador(): Boolean {
+        return Build.FINGERPRINT.startsWith("generic")
+                || Build.FINGERPRINT.startsWith("unknown")
+                || Build.MODEL.contains("google_sdk")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK built for x86")
+                || Build.MANUFACTURER.contains("Genymotion")
+                || (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
+                || "google_sdk" == Build.PRODUCT
+    }
+    // Cliente OkHttp con tiempos de espera configurados.
+    private val cliente: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(8, TimeUnit.SECONDS)
+        .build()
+    // Instancia de ApiService creada por Retrofit con conversor Gson.
+    val api: ApiService = Retrofit.Builder()
+        .baseUrl(BASE_URL)
+        .client(cliente)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+        .create(ApiService::class.java)
+    // Ejecuta operaciones de guardado/edicion en hilo IO y retorna un mensaje para la UI.
+    suspend fun guardar(llamada: suspend () -> Response<ResponseBody>): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Invoca la llamada HTTP recibida como parametro.
+                val r = llamada()
+                // Interpreta la respuesta exitosa o construye un mensaje de error.
+                if (r.isSuccessful) {
+                    "Guardado correctamente"
+                } else {
+                    val error = r.errorBody()?.string() ?: ""
+                    if (error == "") "Error " + r.code() else error.trim('"')
+                }
+            } catch (e: Exception) {
+                // Maneja errores de conexion u otros fallos de red.
+                "No se pudo conectar con la API: " + e.message
+            }
+        }
+    }
+}
+Archivo: Models.kt
+Ruta: app/src/main/java/com/tnt/notas/Models.kt
+Descripcion: Modelos de datos y DTOs para alumnos, asignaturas, notas y listados, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importacion para mapear nombres JSON distintos a los del modelo Kotlin.
+import com.google.gson.annotations.SerializedName
+// Modelo de datos para representar un alumno.
+data class AlumnoDto(
+    val codAlumno: Int,
+    val nombres: String,
+    val apellidos: String
+)
+// Modelo usado al crear una nueva asignatura.
+data class AsignaturaNueva(
+    val nomAsignatura: String
+)
+// Modelo de datos para representar una asignatura existente.
+data class AsignaturaDto(
+    val idAsignatura: Int,
+    val nomAsignatura: String
+)
+// Modelo de datos para representar una nota.
+data class NotaDto(
+    val codAlumno: Int,
+    val idAsignatura: Int,
+    val nNota: Int,
+    val nota: Double
+)
+// Modelo para el listado consolidado de notas devuelto por la API.
+data class ListadoNota(
+    @SerializedName("COD_ALUMNO") val codAlumno: Int?,
+    @SerializedName("NOMBRE_COMPLETO") val nombreCompleto: String?,
+    @SerializedName("NOM_ASIGNATURA") val nomAsignatura: String?,
+    @SerializedName("NOTA_1") val nota1: Double?,
+    @SerializedName("NOTA_2") val nota2: Double?,
+    @SerializedName("NOTA_3") val nota3: Double?,
+    @SerializedName("PROMEDIO") val promedio: Double?
+)
+Archivo: MainActivity.kt
+Ruta: app/src/main/java/com/tnt/notas/MainActivity.kt
+Descripcion: Actividad principal con menu de navegacion y salida, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para navegacion entre pantallas y componentes de Android.
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Button
+import androidx.appcompat.app.AppCompatActivity
+// Actividad principal que funciona como menu de la aplicacion.
+class MainActivity : AppCompatActivity() {
+    // Metodo de ciclo de vida donde se inicializa la pantalla y sus acciones.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Asocia la actividad con su layout de menu.
+        setContentView(R.layout.activity_menu)
+        // Navega a la pantalla de ingreso de alumno.
+        findViewById<Button>(R.id.btnAlumno).setOnClickListener {
+            startActivity(Intent(this, AlumnoActivity::class.java))
+        }
+        // Navega a la pantalla de ingreso de asignatura.
+        findViewById<Button>(R.id.btnAsignatura).setOnClickListener {
+            startActivity(Intent(this, AsignaturaActivity::class.java))
+        }
+        // Navega a la pantalla de ingreso de notas.
+        findViewById<Button>(R.id.btnNota).setOnClickListener {
+            startActivity(Intent(this, NotaActivity::class.java))
+        }
+        // Navega a la pantalla de listado de notas.
+        findViewById<Button>(R.id.btnListado).setOnClickListener {
+            startActivity(Intent(this, ListadoActivity::class.java))
+        }
+        // Abre la lista de alumnos en modo solo lectura.
+        findViewById<Button>(R.id.btnListaAlumnos).setOnClickListener {
+            val intent = Intent(this, ListaAlumnosActivity::class.java)
+            intent.putExtra("modoEdicion", false)
+            startActivity(intent)
+        }
+        // Abre la lista de alumnos en modo edicion.
+        findViewById<Button>(R.id.btnEditarAlumno).setOnClickListener {
+            val intent = Intent(this, ListaAlumnosActivity::class.java)
+            intent.putExtra("modoEdicion", true)
+            startActivity(intent)
+        }
+        // Abre la lista de asignaturas en modo solo lectura.
+        findViewById<Button>(R.id.btnListaAsignaturas).setOnClickListener {
+            val intent = Intent(this, ListaAsignaturasActivity::class.java)
+            intent.putExtra("modoEdicion", false)
+            startActivity(intent)
+        }
+        // Abre la lista de asignaturas en modo edicion.
+        findViewById<Button>(R.id.btnEditarAsignatura).setOnClickListener {
+            val intent = Intent(this, ListaAsignaturasActivity::class.java)
+            intent.putExtra("modoEdicion", true)
+            startActivity(intent)
+        }
+        // Navega a la pantalla de edicion de notas.
+        findViewById<Button>(R.id.btnEditarNota).setOnClickListener {
+            startActivity(Intent(this, EditarNotaActivity::class.java))
+        }
+        // Navega a la pantalla de resumen.
+        findViewById<Button>(R.id.btnResumen).setOnClickListener {
+            startActivity(Intent(this, ResumenActivity::class.java))
+        }
+        // Cierra completamente la aplicacion.
+        findViewById<Button>(R.id.btnSalir).setOnClickListener {
+            finishAffinity()
+        }
+    }
+}
+Archivo: AlumnoActivity.kt
+Ruta: app/src/main/java/com/tnt/notas/AlumnoActivity.kt
+Descripcion: Actividad para ingresar alumnos en la API, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para navegacion, interfaz de usuario y corrutinas.
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+// Actividad para ingresar un nuevo alumno.
+class AlumnoActivity : AppCompatActivity() {
+    // Inicializa la vista y configura los eventos de la pantalla.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Carga el layout asociado a esta actividad.
+        setContentView(R.layout.activity_alumno)
+        // Boton para volver al menu principal.
+        findViewById<Button>(R.id.btnHome).setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
+        // Referencias a los campos de entrada y elementos de resultado.
+        val etCodigo = findViewById<EditText>(R.id.etCodigo)
+        val etNombres = findViewById<EditText>(R.id.etNombres)
+        val etApellidos = findViewById<EditText>(R.id.etApellidos)
+        val btnGuardar = findViewById<Button>(R.id.btnGuardar)
+        val tvResultado = findViewById<TextView>(R.id.tvResultado)
+        // Accion del boton guardar para validar y enviar datos a la API.
+        btnGuardar.setOnClickListener {
+            val codigo = etCodigo.text.toString().toIntOrNull()
+            val nombres = etNombres.text.toString().trim()
+            val apellidos = etApellidos.text.toString().trim()
+            // Valida que todos los campos requeridos esten completos.
+            if (codigo == null || nombres == "" || apellidos == "") {
+                tvResultado.text = "Complete codigo, nombres y apellidos"
+                return@setOnClickListener
+            }
+            // Construye el objeto alumno con los datos ingresados.
+            val alumno = AlumnoDto(codigo, nombres, apellidos)
+            // Ejecuta la solicitud de creacion en segundo plano y muestra el resultado.
+            lifecycleScope.launch {
+                tvResultado.text = "Enviando..."
+                val mensaje = RetrofitClient.guardar { RetrofitClient.api.crearAlumno(alumno) }
+                tvResultado.text = mensaje
+            }
+        }
+    }
+}
+Archivo: AsignaturaActivity.kt
+Ruta: app/src/main/java/com/tnt/notas/AsignaturaActivity.kt
+Descripcion: Actividad para ingresar asignaturas en la API, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para navegacion, interfaz de usuario y corrutinas.
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+// Actividad para ingresar una nueva asignatura.
+class AsignaturaActivity : AppCompatActivity() {
+    // Inicializa la vista y configura los eventos de la pantalla.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Carga el layout asociado a esta actividad.
+        setContentView(R.layout.activity_asignatura)
+        // Boton para volver al menu principal.
+        findViewById<Button>(R.id.btnHome).setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
+        // Referencias a los elementos de la interfaz.
+        val etNombre = findViewById<EditText>(R.id.etNombre)
+        val btnGuardar = findViewById<Button>(R.id.btnGuardar)
+        val tvResultado = findViewById<TextView>(R.id.tvResultado)
+        // Accion del boton guardar para validar y enviar la asignatura.
+        btnGuardar.setOnClickListener {
+            val nombre = etNombre.text.toString().trim()
+            // Valida que el nombre no este vacio.
+            if (nombre == "") {
+                tvResultado.text = "Ingrese el nombre de la asignatura"
+                return@setOnClickListener
+            }
+            // Envia la solicitud de creacion a la API y muestra el resultado.
+            lifecycleScope.launch {
+                tvResultado.text = "Enviando..."
+                val mensaje = RetrofitClient.guardar {
+                    RetrofitClient.api.crearAsignatura(AsignaturaNueva(nombre))
+                }
+                tvResultado.text = mensaje
+            }
+        }
+    }
+}
+Archivo: NotaActivity.kt
+Ruta: app/src/main/java/com/tnt/notas/NotaActivity.kt
+Descripcion: Actividad para ingresar notas mostrando la nota correspondiente a la seleccion, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para navegacion, componentes de UI, eventos y corrutinas.
+import android.content.Intent
+import android.os.Bundle
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.Spinner
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+// Actividad para ingresar notas, mostrando la nota correspondiente a la seleccion actual.
+class NotaActivity : AppCompatActivity() {
+    // Listas en memoria con alumnos, asignaturas y notas cargadas desde la API.
+    var alumnos: List<AlumnoDto> = emptyList()
+    var asignaturas: List<AsignaturaDto> = emptyList()
+    var listadoNotas: List<ListadoNota> = emptyList()
+    // Referencias a los controles de la interfaz.
+    lateinit var spAlumno: Spinner
+    lateinit var spAsignatura: Spinner
+    lateinit var spNumero: Spinner
+    lateinit var etNota: EditText
+    lateinit var tvResultado: TextView
+    // Inicializa la pantalla, listeners y carga de datos.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Asocia el layout de ingreso de notas.
+        setContentView(R.layout.activity_nota)
+        // Boton para volver al menu principal.
+        findViewById<Button>(R.id.btnHome).setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
+        // Vincula variables con los elementos del layout.
+        spAlumno = findViewById(R.id.spAlumno)
+        spAsignatura = findViewById(R.id.spAsignatura)
+        spNumero = findViewById(R.id.spNumero)
+        etNota = findViewById(R.id.etNota)
+        tvResultado = findViewById(R.id.tvResultado)
+        // Configura el selector de numero de nota (1 a 3).
+        val numeros = ArrayAdapter(this, android.R.layout.simple_spinner_item, listOf("1", "2", "3"))
+        numeros.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spNumero.adapter = numeros
+        // Listener comun para actualizar la nota mostrada al cambiar la seleccion.
+        val listener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                mostrarNotaCorrespondiente()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+            }
+        }
+        spAlumno.onItemSelectedListener = listener
+        spAsignatura.onItemSelectedListener = listener
+        spNumero.onItemSelectedListener = listener
+        // Ejecuta el ingreso de nota al presionar el boton.
+        findViewById<Button>(R.id.btnGuardar).setOnClickListener { ingresarNota() }
+    }
+    // Recarga datos cada vez que la pantalla vuelve a primer plano.
+    override fun onResume() {
+        super.onResume()
+        cargarListas()
+    }
+    // Obtiene alumnos, asignaturas y listado de notas desde la API.
+    fun cargarListas() {
+        lifecycleScope.launch {
+            try {
+                // Solicitudes de red ejecutadas en el hilo IO.
+                val respAlumnos = withContext(Dispatchers.IO) { RetrofitClient.api.listarAlumnos() }
+                val respAsignaturas = withContext(Dispatchers.IO) { RetrofitClient.api.listarAsignaturas() }
+                val respListado = withContext(Dispatchers.IO) { RetrofitClient.api.listado() }
+                // Verifica que las listas principales se hayan obtenido correctamente.
+                if (!respAlumnos.isSuccessful || !respAsignaturas.isSuccessful) {
+                    tvResultado.text = "No se pudieron cargar alumnos y asignaturas"
+                    return@launch
+                }
+                // Guarda los datos recibidos para usarlos en la UI.
+                alumnos = respAlumnos.body() ?: emptyList()
+                asignaturas = respAsignaturas.body() ?: emptyList()
+                listadoNotas = if (respListado.isSuccessful) respListado.body() ?: emptyList() else emptyList()
+                // Prepara textos visibles para los spinners.
+                val textosAlumnos = alumnos.map { it.codAlumno.toString() + " - " + it.nombres + " " + it.apellidos }
+                val textosAsignaturas = asignaturas.map { it.nomAsignatura }
+                // Asigna adaptadores a los spinners de alumnos y asignaturas.
+                val adA = ArrayAdapter(this@NotaActivity, android.R.layout.simple_spinner_item, textosAlumnos)
+                adA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                spAlumno.adapter = adA
+                val adS = ArrayAdapter(this@NotaActivity, android.R.layout.simple_spinner_item, textosAsignaturas)
+                adS.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                spAsignatura.adapter = adS
+                // Muestra la nota correspondiente a la seleccion inicial.
+                mostrarNotaCorrespondiente()
+            } catch (e: Exception) {
+                // Informa errores de conexion o carga.
+                tvResultado.text = "No se pudo conectar con la API: " + e.message
+            }
+        }
+    }
+    // Busca y muestra la nota existente segun alumno, asignatura y numero seleccionados.
+    fun mostrarNotaCorrespondiente() {
+        if (alumnos.isEmpty() || asignaturas.isEmpty()) {
+            return
+        }
+        val codAlumno = alumnos[spAlumno.selectedItemPosition].codAlumno
+        val nomAsignatura = asignaturas[spAsignatura.selectedItemPosition].nomAsignatura
+        val nNota = spNumero.selectedItem.toString().toInt()
+        // Localiza la fila del listado que coincide con la seleccion.
+        val fila = listadoNotas.find { it.codAlumno == codAlumno && it.nomAsignatura == nomAsignatura }
+        // Selecciona la nota 1, 2 o 3 segun corresponda.
+        val valor = when (nNota) {
+            1 -> fila?.nota1
+            2 -> fila?.nota2
+            3 -> fila?.nota3
+            else -> null
+        }
+        // Actualiza el campo y el mensaje segun exista o no una nota registrada.
+        if (valor != null) {
+            etNota.setText(valor.toString())
+            tvResultado.text = "Nota actual cargada para la seleccion"
+        } else {
+            etNota.setText("")
+            tvResultado.text = "No hay nota registrada para la seleccion"
+        }
+    }
+    // Valida y envia una nueva nota a la API.
+    fun ingresarNota() {
+        if (alumnos.isEmpty() || asignaturas.isEmpty()) {
+            tvResultado.text = "Primero ingrese al menos un alumno y una asignatura"
+            return
+        }
+        val valor = etNota.text.toString().replace(",", ".").toDoubleOrNull()
+        // Valida el rango permitido de la nota.
+        if (valor == null || valor < 1.0 || valor > 7.0) {
+            tvResultado.text = "La nota debe estar entre 1.0 y 7.0"
+            return
+        }
+        // Construye el objeto nota con la seleccion actual.
+        val nota = NotaDto(
+            alumnos[spAlumno.selectedItemPosition].codAlumno,
+            asignaturas[spAsignatura.selectedItemPosition].idAsignatura,
+            spNumero.selectedItem.toString().toInt(),
+            valor
+        )
+        // Envia la solicitud de creacion y refresca la nota mostrada si fue exitosa.
+        lifecycleScope.launch {
+            tvResultado.text = "Enviando..."
+            val mensaje = RetrofitClient.guardar {
+                RetrofitClient.api.crearNota(nota)
+            }
+            tvResultado.text = mensaje
+            if (mensaje == "Guardado correctamente") {
+                val respListado = withContext(Dispatchers.IO) { RetrofitClient.api.listado() }
+                if (respListado.isSuccessful) {
+                    listadoNotas = respListado.body() ?: emptyList()
+                    mostrarNotaCorrespondiente()
+                }
+            }
+        }
+    }
+}
+Archivo: EditarNotaActivity.kt
+Ruta: app/src/main/java/com/tnt/notas/EditarNotaActivity.kt
+Descripcion: Actividad para editar la nota correspondiente a la seleccion, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para navegacion, componentes de UI, eventos y corrutinas.
+import android.content.Intent
+import android.os.Bundle
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.Spinner
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+// Actividad para editar la nota correspondiente a la seleccion actual.
+class EditarNotaActivity : AppCompatActivity() {
+    // Listas en memoria con datos cargados desde la API.
+    var alumnos: List<AlumnoDto> = emptyList()
+    var asignaturas: List<AsignaturaDto> = emptyList()
+    var listadoNotas: List<ListadoNota> = emptyList()
+    // Referencias a los controles de la interfaz.
+    lateinit var spAlumno: Spinner
+    lateinit var spAsignatura: Spinner
+    lateinit var spNumero: Spinner
+    lateinit var etNota: EditText
+    lateinit var tvResultado: TextView
+    // Inicializa la pantalla, listeners y carga inicial de datos.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Asocia el layout de edicion de notas.
+        setContentView(R.layout.activity_editar_nota)
+        // Boton para volver al menu principal.
+        findViewById<Button>(R.id.btnHome).setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
+        // Vincula variables con los elementos del layout.
+        spAlumno = findViewById(R.id.spAlumno)
+        spAsignatura = findViewById(R.id.spAsignatura)
+        spNumero = findViewById(R.id.spNumero)
+        etNota = findViewById(R.id.etNota)
+        tvResultado = findViewById(R.id.tvResultado)
+        // Configura el selector de numero de nota (1 a 3).
+        val numeros = ArrayAdapter(this, android.R.layout.simple_spinner_item, listOf("1", "2", "3"))
+        numeros.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spNumero.adapter = numeros
+        // Listener para actualizar la nota mostrada al cambiar cualquier seleccion.
+        val listener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                mostrarNotaCorrespondiente()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+            }
+        }
+        spAlumno.onItemSelectedListener = listener
+        spAsignatura.onItemSelectedListener = listener
+        spNumero.onItemSelectedListener = listener
+        // Ejecuta la edicion de la nota al presionar el boton.
+        findViewById<Button>(R.id.btnEditarNota).setOnClickListener { editarNota() }
+        // Carga inicial de datos desde la API.
+        cargarDatos()
+    }
+    // Obtiene alumnos, asignaturas y listado de notas desde la API.
+    fun cargarDatos() {
+        lifecycleScope.launch {
+            try {
+                // Solicitudes de red en hilo IO.
+                val respAlumnos = withContext(Dispatchers.IO) { RetrofitClient.api.listarAlumnos() }
+                val respAsignaturas = withContext(Dispatchers.IO) { RetrofitClient.api.listarAsignaturas() }
+                val respListado = withContext(Dispatchers.IO) { RetrofitClient.api.listado() }
+                // Verifica disponibilidad de alumnos y asignaturas.
+                if (!respAlumnos.isSuccessful || !respAsignaturas.isSuccessful) {
+                    tvResultado.text = "No se pudieron cargar alumnos y asignaturas"
+                    return@launch
+                }
+                // Almacena los datos obtenidos.
+                alumnos = respAlumnos.body() ?: emptyList()
+                asignaturas = respAsignaturas.body() ?: emptyList()
+                listadoNotas = if (respListado.isSuccessful) respListado.body() ?: emptyList() else emptyList()
+                // Prepara textos para los spinners.
+                val textosAlumnos = alumnos.map { it.codAlumno.toString() + " - " + it.nombres + " " + it.apellidos }
+                val textosAsignaturas = asignaturas.map { it.nomAsignatura }
+                // Asigna adaptadores a los spinners.
+                val adA = ArrayAdapter(this@EditarNotaActivity, android.R.layout.simple_spinner_item, textosAlumnos)
+                adA.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                spAlumno.adapter = adA
+                val adS = ArrayAdapter(this@EditarNotaActivity, android.R.layout.simple_spinner_item, textosAsignaturas)
+                adS.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                spAsignatura.adapter = adS
+                // Muestra la nota correspondiente a la seleccion inicial.
+                mostrarNotaCorrespondiente()
+            } catch (e: Exception) {
+                // Manejo de errores de conexion.
+                tvResultado.text = "No se pudo conectar con la API: " + e.message
+            }
+        }
+    }
+    // Carga en el campo la nota existente segun la combinacion seleccionada.
+    fun mostrarNotaCorrespondiente() {
+        if (alumnos.isEmpty() || asignaturas.isEmpty()) {
+            return
+        }
+        val codAlumno = alumnos[spAlumno.selectedItemPosition].codAlumno
+        val nomAsignatura = asignaturas[spAsignatura.selectedItemPosition].nomAsignatura
+        val nNota = spNumero.selectedItem.toString().toInt()
+        // Busca la fila correspondiente en el listado consolidado.
+        val fila = listadoNotas.find { it.codAlumno == codAlumno && it.nomAsignatura == nomAsignatura }
+        // Obtiene el valor de la nota segun el numero seleccionado.
+        val valor = when (nNota) {
+            1 -> fila?.nota1
+            2 -> fila?.nota2
+            3 -> fila?.nota3
+            else -> null
+        }
+        // Refleja en pantalla la nota encontrada o indica que no existe.
+        if (valor != null) {
+            etNota.setText(valor.toString())
+            tvResultado.text = "Nota actual cargada para la seleccion"
+        } else {
+            etNota.setText("")
+            tvResultado.text = "No hay nota registrada para la seleccion"
+        }
+    }
+    // Valida y envia la edicion de la nota seleccionada.
+    fun editarNota() {
+        if (alumnos.isEmpty() || asignaturas.isEmpty()) {
+            tvResultado.text = "Primero ingrese al menos un alumno y una asignatura"
+            return
+        }
+        val valor = etNota.text.toString().replace(",", ".").toDoubleOrNull()
+        // Valida que la nota este dentro del rango permitido.
+        if (valor == null || valor < 1.0 || valor > 7.0) {
+            tvResultado.text = "La nota debe estar entre 1.0 y 7.0"
+            return
+        }
+        // Construye el objeto nota con los datos seleccionados.
+        val nota = NotaDto(
+            alumnos[spAlumno.selectedItemPosition].codAlumno,
+            asignaturas[spAsignatura.selectedItemPosition].idAsignatura,
+            spNumero.selectedItem.toString().toInt(),
+            valor
+        )
+        // Envia la actualizacion y refresca los datos mostrados si es exitosa.
+        lifecycleScope.launch {
+            tvResultado.text = "Enviando..."
+            val mensaje = RetrofitClient.guardar {
+                RetrofitClient.api.editarNota(nota)
+            }
+            tvResultado.text = mensaje
+            if (mensaje == "Guardado correctamente") {
+                val respListado = withContext(Dispatchers.IO) { RetrofitClient.api.listado() }
+                if (respListado.isSuccessful) {
+                    listadoNotas = respListado.body() ?: emptyList()
+                    mostrarNotaCorrespondiente()
+                }
+            }
+        }
+    }
+}
+Archivo: ListadoActivity.kt
+Ruta: app/src/main/java/com/tnt/notas/ListadoActivity.kt
+Descripcion: Actividad que muestra el listado de notas, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para navegacion, interfaz de usuario y corrutinas.
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Button
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+// Actividad que muestra el listado de notas obtenido desde la API.
+class ListadoActivity : AppCompatActivity() {
+    // Referencia al texto donde se despliega el listado.
+    lateinit var tvListado: TextView
+    // Inicializa la pantalla y dispara la carga inicial.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Asocia el layout de listado.
+        setContentView(R.layout.activity_listado)
+        // Boton para volver al menu principal.
+        findViewById<Button>(R.id.btnHome).setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
+        // Configura elementos de la interfaz y evento de actualizacion.
+        tvListado = findViewById(R.id.tvListado)
+        findViewById<Button>(R.id.btnActualizar).setOnClickListener { cargar() }
+        cargar()
+    }
+    // Consulta el listado de notas y lo presenta en formato legible.
+    fun cargar() {
+        lifecycleScope.launch {
+            tvListado.text = "Cargando..."
+            try {
+                // Solicitud al endpoint de listado en hilo IO.
+                val respuesta = withContext(Dispatchers.IO) { RetrofitClient.api.listado() }
+                // Manejo de respuesta no exitosa.
+                if (!respuesta.isSuccessful) {
+                    tvListado.text = "Error " + respuesta.code()
+                    return@launch
+                }
+                // Obtiene filas del listado o informa si esta vacio.
+                val filas = respuesta.body() ?: emptyList()
+                if (filas.isEmpty()) {
+                    tvListado.text = "Aun no hay notas ingresadas"
+                    return@launch
+                }
+                // Construye el texto con los datos de cada registro.
+                var texto = ""
+                for (f in filas) {
+                    texto += "Alumno: " + f.codAlumno + " - " + f.nombreCompleto + "\n"
+                    texto += "Asignatura: " + f.nomAsignatura + "\n"
+                    if (f.nota1 != null) texto += "Nota 1: " + f.nota1 + "\n"
+                    if (f.nota2 != null) texto += "Nota 2: " + f.nota2 + "\n"
+                    if (f.nota3 != null) texto += "Nota 3: " + f.nota3 + "\n"
+                    if (f.promedio != null) texto += "Promedio: " + f.promedio + "\n"
+                    texto += "\n----------------------\n\n"
+                }
+                tvListado.text = texto
+            } catch (e: Exception) {
+                // Manejo de errores de conexion.
+                tvListado.text = "No se pudo conectar con la API: " + e.message
+            }
+        }
+    }
+}
+Archivo: ResumenActivity.kt
+Ruta: app/src/main/java/com/tnt/notas/ResumenActivity.kt
+Descripcion: Actividad que muestra el resumen solicitado de alumnos, asignaturas y notas, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para navegacion, interfaz de usuario y corrutinas.
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Button
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+// Actividad que muestra el resumen solicitado de alumnos, asignaturas y notas.
+class ResumenActivity : AppCompatActivity() {
+    // Referencia al texto donde se despliega el resumen.
+    lateinit var tvResumen: TextView
+    // Inicializa la pantalla y dispara la carga inicial.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Asocia el layout de resumen.
+        setContentView(R.layout.activity_resumen)
+        // Boton para volver al menu principal.
+        findViewById<Button>(R.id.btnHome).setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
+        // Configura elementos de la interfaz y evento de actualizacion.
+        tvResumen = findViewById(R.id.tvResumen)
+        findViewById<Button>(R.id.btnActualizar).setOnClickListener { cargar() }
+        cargar()
+    }
+    // Consulta el listado y lo formatea con los campos requeridos.
+    fun cargar() {
+        lifecycleScope.launch {
+            tvResumen.text = "Cargando..."
+            try {
+                // Solicitud al endpoint de listado en hilo IO.
+                val respuesta = withContext(Dispatchers.IO) { RetrofitClient.api.listado() }
+                // Manejo de respuesta no exitosa.
+                if (!respuesta.isSuccessful) {
+                    tvResumen.text = "Error " + respuesta.code()
+                    return@launch
+                }
+                // Obtiene filas o informa si no hay datos.
+                val filas = respuesta.body() ?: emptyList()
+                if (filas.isEmpty()) {
+                    tvResumen.text = "Aun no hay notas ingresadas"
+                    return@launch
+                }
+                // Construye el resumen con el formato solicitado.
+                var texto = ""
+                for (f in filas) {
+                    texto += "COD_ALUMNO: " + (f.codAlumno?.toString() ?: "-") + "\n"
+                    texto += "NOMBRE_COMPLETO: " + (f.nombreCompleto ?: "-") + "\n"
+                    texto += "NOM_ASIGNATURA: " + (f.nomAsignatura ?: "-") + "\n"
+                    texto += "N_NOTA_1: 1\n"
+                    texto += "NOTA_1: " + (f.nota1?.toString() ?: "-") + "\n"
+                    texto += "N_NOTA2: 2\n"
+                    texto += "NOTA_2: " + (f.nota2?.toString() ?: "-") + "\n"
+                    texto += "N_NOTA_3: 3\n"
+                    texto += "NOTA_3: " + (f.nota3?.toString() ?: "-") + "\n"
+                    texto += "PROMEDIO: " + (f.promedio?.toString() ?: "-") + "\n"
+                    texto += "----------------------\n"
+                }
+                tvResumen.text = texto
+            } catch (e: Exception) {
+                // Manejo de errores de conexion.
+                tvResumen.text = "No se pudo conectar con la API: " + e.message
+            }
+        }
+    }
+}
+Archivo: ListaAlumnosActivity.kt
+Ruta: app/src/main/java/com/tnt/notas/ListaAlumnosActivity.kt
+Descripcion: Actividad que lista alumnos en modo solo lectura o permite editarlos segun el modo, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para navegacion, visibilidad, componentes de UI y corrutinas.
+import android.content.Intent
+import android.os.Bundle
+import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ListView
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+// Actividad que lista alumnos y, segun modo, permite editarlos.
+class ListaAlumnosActivity : AppCompatActivity() {
+    // Estado de datos y modo de funcionamiento de la pantalla.
+    var alumnos: List<AlumnoDto> = emptyList()
+    var seleccionado: AlumnoDto? = null
+    var modoEdicion: Boolean = false
+    // Referencias a elementos de la interfaz.
+    lateinit var lvAlumnos: ListView
+    lateinit var tvTitulo: TextView
+    lateinit var tvCodigo: TextView
+    lateinit var etNombres: EditText
+    lateinit var etApellidos: EditText
+    lateinit var tvResultado: TextView
+    lateinit var btnEditarAlumno: Button
+    // Inicializa la vista, determina el modo y configura eventos.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Asocia el layout de listado/edicion de alumnos.
+        setContentView(R.layout.activity_lista_alumnos)
+        // Boton para volver al menu principal.
+        findViewById<Button>(R.id.btnHome).setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
+        // Lee el modo enviado desde el menu (listar o editar).
+        modoEdicion = intent.getBooleanExtra("modoEdicion", false)
+        // Vincula las vistas del layout.
+        lvAlumnos = findViewById(R.id.lvAlumnos)
+        tvTitulo = findViewById(R.id.tvTitulo)
+        tvCodigo = findViewById(R.id.tvCodigo)
+        etNombres = findViewById(R.id.etNombres)
+        etApellidos = findViewById(R.id.etApellidos)
+        tvResultado = findViewById(R.id.tvResultado)
+        btnEditarAlumno = findViewById(R.id.btnEditarAlumno)
+        // Configura la interfaz segun si es modo edicion o solo listado.
+        if (modoEdicion) {
+            tvTitulo.text = "Editar alumno (toque uno para editar)"
+            tvCodigo.visibility = View.VISIBLE
+            etNombres.visibility = View.VISIBLE
+            etApellidos.visibility = View.VISIBLE
+            btnEditarAlumno.visibility = View.VISIBLE
+            // Al seleccionar un alumno, carga sus datos en el formulario.
+            lvAlumnos.setOnItemClickListener { _, _, posicion, _ ->
+                val a = alumnos[posicion]
+                seleccionado = a
+                tvCodigo.text = "Codigo: " + a.codAlumno
+                etNombres.setText(a.nombres)
+                etApellidos.setText(a.apellidos)
+                tvResultado.text = "Alumno seleccionado: " + a.codAlumno
+            }
+            // Ejecuta la edicion del alumno seleccionado.
+            btnEditarAlumno.setOnClickListener { editar() }
+        } else {
+            tvTitulo.text = "Listado de alumnos"
+            tvCodigo.visibility = View.GONE
+            etNombres.visibility = View.GONE
+            etApellidos.visibility = View.GONE
+            btnEditarAlumno.visibility = View.GONE
+            // En modo listado no se permite seleccionar para editar.
+            lvAlumnos.setOnItemClickListener(null)
+        }
+        // Configura la actualizacion manual de la lista.
+        findViewById<Button>(R.id.btnActualizar).setOnClickListener { cargar() }
+        // Carga inicial de alumnos.
+        cargar()
+    }
+    // Consulta y muestra los alumnos desde la API.
+    fun cargar() {
+        lifecycleScope.launch {
+            try {
+                // Solicitud de red en hilo IO.
+                val r = withContext(Dispatchers.IO) { RetrofitClient.api.listarAlumnos() }
+                if (!r.isSuccessful) {
+                    tvResultado.text = "Error " + r.code()
+                    return@launch
+                }
+                // Actualiza la lista y el adaptador con los datos recibidos.
+                alumnos = r.body() ?: emptyList()
+                val textos = alumnos.map { it.codAlumno.toString() + " - " + it.nombres + " " + it.apellidos }
+                lvAlumnos.adapter = ArrayAdapter(this@ListaAlumnosActivity, android.R.layout.simple_list_item_1, textos)
+                // Muestra estado segun haya o no registros.
+                if (alumnos.isEmpty()) {
+                    tvResultado.text = "Aun no hay alumnos ingresados"
+                } else {
+                    tvResultado.text = "Alumnos: " + alumnos.size
+                }
+            } catch (e: Exception) {
+                // Manejo de errores de conexion.
+                tvResultado.text = "No se pudo conectar con la API: " + e.message
+            }
+        }
+    }
+    // Valida y envia la edicion del alumno seleccionado (solo en modo edicion).
+    fun editar() {
+        if (!modoEdicion) {
+            return
+        }
+        val a = seleccionado
+        if (a == null) {
+            tvResultado.text = "Seleccione un alumno de la lista"
+            return
+        }
+        val nombres = etNombres.text.toString().trim()
+        val apellidos = etApellidos.text.toString().trim()
+        // Valida campos obligatorios.
+        if (nombres == "" || apellidos == "") {
+            tvResultado.text = "Complete nombres y apellidos"
+            return
+        }
+        // Envia la actualizacion a la API y refresca la lista al finalizar.
+        lifecycleScope.launch {
+            tvResultado.text = "Enviando..."
+            val mensaje = RetrofitClient.guardar {
+                RetrofitClient.api.editarAlumno(AlumnoDto(a.codAlumno, nombres, apellidos))
+            }
+            tvResultado.text = mensaje
+            if (mensaje == "Guardado correctamente") {
+                seleccionado = null
+                tvCodigo.text = "Codigo: -"
+                etNombres.text.clear()
+                etApellidos.text.clear()
+                cargar()
+            }
+        }
+    }
+}
+Archivo: ListaAsignaturasActivity.kt
+Ruta: app/src/main/java/com/tnt/notas/ListaAsignaturasActivity.kt
+Descripcion: Actividad que lista asignaturas en modo solo lectura o permite editarlas segun el modo, con comentarios didacticos.
+// Paquete principal de la aplicacion.
+package com.tnt.notas
+// Importaciones para navegacion, visibilidad, componentes de UI y corrutinas.
+import android.content.Intent
+import android.os.Bundle
+import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ListView
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+// Actividad que lista asignaturas y, segun modo, permite editarlas.
+class ListaAsignaturasActivity : AppCompatActivity() {
+    // Estado de datos y modo de funcionamiento de la pantalla.
+    var asignaturas: List<AsignaturaDto> = emptyList()
+    var seleccionada: AsignaturaDto? = null
+    var modoEdicion: Boolean = false
+    // Referencias a elementos de la interfaz.
+    lateinit var lvAsignaturas: ListView
+    lateinit var tvTitulo: TextView
+    lateinit var tvId: TextView
+    lateinit var etNombre: EditText
+    lateinit var tvResultado: TextView
+    lateinit var btnEditarAsignatura: Button
+    // Inicializa la vista, determina el modo y configura eventos.
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Asocia el layout de listado/edicion de asignaturas.
+        setContentView(R.layout.activity_lista_asignaturas)
+        // Boton para volver al menu principal.
+        findViewById<Button>(R.id.btnHome).setOnClickListener {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
+        // Lee el modo enviado desde el menu (listar o editar).
+        modoEdicion = intent.getBooleanExtra("modoEdicion", false)
+        // Vincula las vistas del layout.
+        lvAsignaturas = findViewById(R.id.lvAsignaturas)
+        tvTitulo = findViewById(R.id.tvTitulo)
+        tvId = findViewById(R.id.tvId)
+        etNombre = findViewById(R.id.etNombre)
+        tvResultado = findViewById(R.id.tvResultado)
+        btnEditarAsignatura = findViewById(R.id.btnEditarAsignatura)
+        // Configura la interfaz segun si es modo edicion o solo listado.
+        if (modoEdicion) {
+            tvTitulo.text = "Editar asignatura (toque una para editar)"
+            tvId.visibility = View.VISIBLE
+            etNombre.visibility = View.VISIBLE
+            btnEditarAsignatura.visibility = View.VISIBLE
+            // Al seleccionar una asignatura, carga sus datos en el formulario.
+            lvAsignaturas.setOnItemClickListener { _, _, posicion, _ ->
+                val s = asignaturas[posicion]
+                seleccionada = s
+                tvId.text = "Id: " + s.idAsignatura
+                etNombre.setText(s.nomAsignatura)
+                tvResultado.text = "Asignatura seleccionada: " + s.idAsignatura
+            }
+            // Ejecuta la edicion de la asignatura seleccionada.
+            btnEditarAsignatura.setOnClickListener { editar() }
+        } else {
+            tvTitulo.text = "Listado de asignaturas"
+            tvId.visibility = View.GONE
+            etNombre.visibility = View.GONE
+            btnEditarAsignatura.visibility = View.GONE
+            // En modo listado no se permite seleccionar para editar.
+            lvAsignaturas.setOnItemClickListener(null)
+        }
+        // Configura la actualizacion manual de la lista.
+        findViewById<Button>(R.id.btnActualizar).setOnClickListener { cargar() }
+        // Carga inicial de asignaturas.
+        cargar()
+    }
+    // Consulta y muestra las asignaturas desde la API.
+    fun cargar() {
+        lifecycleScope.launch {
+            try {
+                // Solicitud de red en hilo IO.
+                val r = withContext(Dispatchers.IO) { RetrofitClient.api.listarAsignaturas() }
+                if (!r.isSuccessful) {
+                    tvResultado.text = "Error " + r.code()
+                    return@launch
+                }
+                // Actualiza la lista y el adaptador con los datos recibidos.
+                asignaturas = r.body() ?: emptyList()
+                val textos = asignaturas.map { it.idAsignatura.toString() + " - " + it.nomAsignatura }
+                lvAsignaturas.adapter = ArrayAdapter(this@ListaAsignaturasActivity, android.R.layout.simple_list_item_1, textos)
+                // Muestra estado segun haya o no registros.
+                if (asignaturas.isEmpty()) {
+                    tvResultado.text = "Aun no hay asignaturas ingresadas"
+                } else {
+                    tvResultado.text = "Asignaturas: " + asignaturas.size
+                }
+            } catch (e: Exception) {
+                // Manejo de errores de conexion.
+                tvResultado.text = "No se pudo conectar con la API: " + e.message
+            }
+        }
+    }
+    // Valida y envia la edicion de la asignatura seleccionada (solo en modo edicion).
+    fun editar() {
+        if (!modoEdicion) {
+            return
+        }
+        val s = seleccionada
+        if (s == null) {
+            tvResultado.text = "Seleccione una asignatura de la lista"
+            return
+        }
+        val nombre = etNombre.text.toString().trim()
+        // Valida campo obligatorio.
+        if (nombre == "") {
+            tvResultado.text = "Ingrese el nombre de la asignatura"
+            return
+        }
+        // Envia la actualizacion a la API y refresca la lista al finalizar.
+        lifecycleScope.launch {
+            tvResultado.text = "Enviando..."
+            val mensaje = RetrofitClient.guardar {
+                RetrofitClient.api.editarAsignatura(AsignaturaDto(s.idAsignatura, nombre))
+            }
+            tvResultado.text = mensaje
+            if (mensaje == "Guardado correctamente") {
+                seleccionada = null
+                tvId.text = "Id: -"
+                etNombre.text.clear()
+                cargar()
+            }
+        }
+    }
+}
+Archivo: AndroidManifest.xml
+Ruta: app/src/main/AndroidManifest.xml
+Descripcion: Manifiesto Android con permisos, tema y actividades, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Manifiesto principal: declara permisos, tema y actividades de la aplicacion. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permiso para realizar solicitudes HTTP a la API. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Configuracion general de la aplicacion Android. -->
+    <application
+        android:allowBackup="true"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:label="Notas"
+        android:theme="@style/Theme.Notas"
+        android:usesCleartextTraffic="true">
+        <!-- Actividad inicial (menu principal) que lanza la aplicacion. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- Pantallas para ingresar datos. -->
+        <activity android:name=".AlumnoActivity" />
+        <activity android:name=".AsignaturaActivity" />
+        <activity android:name=".NotaActivity" />
+        <!-- Pantallas para consultar listados y resumen. -->
+        <activity android:name=".ListadoActivity" />
+	<activity android:name=".ListaAlumnosActivity" android:exported="false" />
+        <activity android:name=".ListaAsignaturasActivity" android:exported="false" />
+        <!-- Pantallas adicionales de edicion y resumen. -->
+        <activity android:name=".EditarNotaActivity" android:exported="false" />
+        <activity android:name=".ResumenActivity" android:exported="false" />
+    </application>
+</manifest>
+Archivo: colors.xml
+Ruta: app/src/main/res/values/colors.xml
+Descripcion: Paleta de colores del tema oscuro, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paleta de colores del tema oscuro de la aplicacion. -->
+<resources>
+    <!-- Colores principales de la interfaz. -->
+    <color name="colorPrimary">#424242</color>
+    <color name="colorPrimaryDark">#303030</color>
+    <color name="colorAccent">#80CBC4</color>
+    <!-- Colores de fondo y superficies en gris oscuro. -->
+    <color name="colorBackground">#303030</color>
+    <color name="colorSurface">#3A3A3A</color>
+    <!-- Colores de texto sobre fondos oscuros. -->
+    <color name="colorOnBackground">#E0E0E0</color>
+    <color name="colorOnSurface">#E0E0E0</color>
+</resources>
+Archivo: themes.xml
+Ruta: app/src/main/res/values/themes.xml
+Descripcion: Tema oscuro general de la aplicacion, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Definicion del tema oscuro general aplicado a toda la app. -->
+<resources>
+    <!-- Tema basado en AppCompat con fondo gris oscuro y textos claros. -->
+    <style name="Theme.Notas" parent="Theme.AppCompat">
+        <!-- Colores base del tema. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <!-- Colores de fondo de ventanas y vistas. -->
+        <item name="android:windowBackground">@color/colorBackground</item>
+        <item name="android:colorBackground">@color/colorBackground</item>
+        <!-- Colores de texto para mejorar legibilidad en modo oscuro. -->
+        <item name="android:textColor">@color/colorOnBackground</item>
+        <item name="android:textColorPrimary">@color/colorOnBackground</item>
+        <item name="android:textColorSecondary">#BDBDBD</item>
+        <item name="android:textColorHint">#9E9E9E</item>
+        <item name="android:editTextColor">@color/colorOnBackground</item>
+    </style>
+</resources>
+Archivo: activity_menu.xml
+Ruta: app/src/main/res/layout/activity_menu.xml
+Descripcion: Layout del menu principal con logo, datos, accesos y salida, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout del menu principal con logo, datos del trabajo y botones de navegacion. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <!-- Contenedor vertical desplazable para todo el contenido del menu. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+        <!-- Logotipo institucional. -->
+        <ImageView
+            android:id="@+id/imgLogo"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:layout_marginBottom="8dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="Logo"
+            android:scaleType="fitCenter"
+            android:src="@drawable/logo" />
+        <!-- Datos informativos del trabajo. -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="INSTITUTO PROFESIONAL VIRGINIO GOMEZ"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Asignatura: Taller de Nuevas Tecnologías" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Trabajo: Trabajo décimas 2" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Profesor: Roberto Andres Cisterna Figueroa" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:text="Estudiantes: Ignacio Gaete Caamaño, Jorge Vera Videla" />
+    <!-- Botones de acceso a las funciones de ingreso. -->
+    <Button
+        android:id="@+id/btnAlumno"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ingresar alumno" />
+    <Button
+        android:id="@+id/btnAsignatura"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ingresar asignatura" />
+    <Button
+        android:id="@+id/btnNota"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ingresar nota" />
+    <!-- Botones de acceso a listados, edicion y resumen. -->
+    <Button
+        android:id="@+id/btnListado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Listar notas" />
+    <Button
+        android:id="@+id/btnListaAlumnos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Listar alumnos" />
+    <Button
+        android:id="@+id/btnListaAsignaturas"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Listar asignaturas" />
+    <Button
+        android:id="@+id/btnEditarAlumno"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Editar alumno" />
+    <Button
+        android:id="@+id/btnEditarAsignatura"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Editar asignatura" />
+    <Button
+        android:id="@+id/btnEditarNota"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Editar nota" />
+        <Button
+            android:id="@+id/btnResumen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Resumen" />
+        <!-- Boton para cerrar la aplicacion. -->
+        <Button
+            android:id="@+id/btnSalir"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🚪 Salir" />
+    </LinearLayout>
+</ScrollView>
+Archivo: activity_alumno.xml
+Ruta: app/src/main/res/layout/activity_alumno.xml
+Descripcion: Layout de ingreso de alumnos, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout para ingresar un nuevo alumno. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <!-- Barra superior con boton para volver al menu. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/btnHome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⌂" />
+    </LinearLayout>
+    <!-- Campos de entrada de datos del alumno. -->
+    <EditText
+        android:id="@+id/etCodigo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Código de alumno"
+        android:inputType="number" />
+    <EditText
+        android:id="@+id/etNombres"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nombres"
+        android:inputType="textPersonName" />
+    <EditText
+        android:id="@+id/etApellidos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Apellidos"
+        android:inputType="textPersonName" />
+    <!-- Boton para guardar y mensaje de resultado. -->
+    <Button
+        android:id="@+id/btnGuardar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Guardar alumno" />
+    <TextView
+        android:id="@+id/tvResultado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textSize="16sp" />
+</LinearLayout>
+Archivo: activity_asignatura.xml
+Ruta: app/src/main/res/layout/activity_asignatura.xml
+Descripcion: Layout de ingreso de asignaturas, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout para ingresar una nueva asignatura. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <!-- Barra superior con boton para volver al menu. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/btnHome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⌂" />
+    </LinearLayout>
+    <!-- Campo de entrada del nombre de la asignatura. -->
+    <EditText
+        android:id="@+id/etNombre"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nombre de la asignatura"
+        android:inputType="text" />
+    <!-- Boton para guardar y mensaje de resultado. -->
+    <Button
+        android:id="@+id/btnGuardar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Guardar asignatura" />
+    <TextView
+        android:id="@+id/tvResultado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textSize="16sp" />
+</LinearLayout>
+Archivo: activity_nota.xml
+Ruta: app/src/main/res/layout/activity_nota.xml
+Descripcion: Layout de ingreso de notas, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout para ingresar notas con seleccion de alumno, asignatura y numero de nota. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <!-- Contenedor principal desplazable. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+        <!-- Barra superior con boton para volver al menu. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/btnHome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⌂" />
+        </LinearLayout>
+        <!-- Selector de alumno. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Alumno" />
+        <Spinner
+            android:id="@+id/spAlumno"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <!-- Selector de asignatura. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Asignatura" />
+        <Spinner
+            android:id="@+id/spAsignatura"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <!-- Selector del numero de nota y campo de valor. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Número de nota (1 a 3)" />
+        <Spinner
+            android:id="@+id/spNumero"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <EditText
+            android:id="@+id/etNota"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Nota (1.0 a 7.0)"
+            android:inputType="numberDecimal" />
+        <!-- Accion de ingreso y mensaje de resultado. -->
+        <Button
+            android:id="@+id/btnGuardar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ingresar nota" />
+        <TextView
+            android:id="@+id/tvResultado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="16sp" />
+    </LinearLayout>
+</ScrollView>
+Archivo: activity_editar_nota.xml
+Ruta: app/src/main/res/layout/activity_editar_nota.xml
+Descripcion: Layout de edicion de notas, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout para editar la nota correspondiente a la seleccion actual. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <!-- Contenedor principal desplazable. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+        <!-- Barra superior con boton para volver al menu. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/btnHome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⌂" />
+        </LinearLayout>
+        <!-- Selector de alumno. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Alumno" />
+        <Spinner
+            android:id="@+id/spAlumno"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <!-- Selector de asignatura. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Asignatura" />
+        <Spinner
+            android:id="@+id/spAsignatura"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <!-- Selector del numero de nota y campo de valor. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Número de nota (1 a 3)" />
+        <Spinner
+            android:id="@+id/spNumero"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <EditText
+            android:id="@+id/etNota"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Nota (1.0 a 7.0)"
+            android:inputType="numberDecimal" />
+        <!-- Accion de edicion y mensaje de resultado. -->
+        <Button
+            android:id="@+id/btnEditarNota"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Editar nota" />
+        <TextView
+            android:id="@+id/tvResultado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="16sp" />
+    </LinearLayout>
+</ScrollView>
+Archivo: activity_listado.xml
+Ruta: app/src/main/res/layout/activity_listado.xml
+Descripcion: Layout de listado de notas, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout para mostrar el listado general de notas. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <!-- Barra superior con boton para volver al menu. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/btnHome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⌂" />
+    </LinearLayout>
+    <!-- Boton para actualizar el listado. -->
+    <Button
+        android:id="@+id/btnActualizar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Actualizar" />
+    <!-- Area desplazable donde se muestra el contenido del listado. -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <TextView
+            android:id="@+id/tvListado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp" />
+    </ScrollView>
+</LinearLayout>
+Archivo: activity_resumen.xml
+Ruta: app/src/main/res/layout/activity_resumen.xml
+Descripcion: Layout de resumen de notas, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout para mostrar el resumen solicitado de alumnos, asignaturas y notas. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <!-- Barra superior con boton para volver al menu. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/btnHome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⌂" />
+    </LinearLayout>
+    <!-- Boton para actualizar el resumen. -->
+    <Button
+        android:id="@+id/btnActualizar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Actualizar" />
+    <!-- Area desplazable donde se muestra el contenido del resumen. -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <TextView
+            android:id="@+id/tvResumen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="16sp" />
+    </ScrollView>
+</LinearLayout>
+Archivo: activity_lista_alumnos.xml
+Ruta: app/src/main/res/layout/activity_lista_alumnos.xml
+Descripcion: Layout de listado y edicion de alumnos segun modo, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout para listar alumnos y, en modo edicion, modificar el seleccionado. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <!-- Barra superior con boton para volver al menu. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/btnHome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⌂" />
+    </LinearLayout>
+    <!-- Titulo dinamico segun modo listado o edicion. -->
+    <TextView
+        android:id="@+id/tvTitulo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Listado de alumnos" />
+    <!-- Lista de alumnos obtenidos desde la API. -->
+    <ListView
+        android:id="@+id/lvAlumnos"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+    <!-- Campos de edicion visibles solo en modo edicion. -->
+    <TextView
+        android:id="@+id/tvCodigo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Codigo: -" />
+    <EditText
+        android:id="@+id/etNombres"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nombres"
+        android:inputType="textPersonName|textCapWords" />
+    <EditText
+        android:id="@+id/etApellidos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Apellidos"
+        android:inputType="textPersonName|textCapWords" />
+    <!-- Botones de edicion, actualizacion y mensaje de estado. -->
+    <Button
+        android:id="@+id/btnEditarAlumno"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Editar alumno" />
+    <Button
+        android:id="@+id/btnActualizar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Actualizar lista" />
+    <TextView
+        android:id="@+id/tvResultado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
+</LinearLayout>
+Archivo: activity_lista_asignaturas.xml
+Ruta: app/src/main/res/layout/activity_lista_asignaturas.xml
+Descripcion: Layout de listado y edicion de asignaturas segun modo, con comentarios didacticos.
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout para listar asignaturas y, en modo edicion, modificar la seleccionada. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <!-- Barra superior con boton para volver al menu. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/btnHome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⌂" />
+    </LinearLayout>
+    <!-- Titulo dinamico segun modo listado o edicion. -->
+    <TextView
+        android:id="@+id/tvTitulo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Listado de asignaturas" />
+    <!-- Lista de asignaturas obtenidas desde la API. -->
+    <ListView
+        android:id="@+id/lvAsignaturas"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+    <!-- Campos de edicion visibles solo en modo edicion. -->
+    <TextView
+        android:id="@+id/tvId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Id: -" />
+    <EditText
+        android:id="@+id/etNombre"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nombre de la asignatura"
+        android:inputType="textCapSentences" />
+    <!-- Botones de edicion, actualizacion y mensaje de estado. -->
+    <Button
+        android:id="@+id/btnEditarAsignatura"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Editar asignatura" />
+    <Button
+        android:id="@+id/btnActualizar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Actualizar lista" />
+    <TextView
+        android:id="@+id/tvResultado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
+</LinearLayout>
+Archivo: app/build.gradle.kts
+Ruta: app/build.gradle.kts
+Descripcion: Configuracion de compilacion y dependencias del modulo app, con comentarios didacticos.
+// Plugins necesarios para compilar una aplicacion Android en Kotlin.
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+// Configuracion Android del modulo app.
+android {
+    // Paquete base y version de SDK de compilacion.
+    namespace = "com.tnt.notas"
+    compileSdk = 35
+    // Parametros de la aplicacion (id, versiones y runner de pruebas).
+    defaultConfig {
+        applicationId = "com.tnt.notas"
+        minSdk = 24
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    // Tipos de compilacion (release sin minificacion en este caso).
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+    // Compatibilidad de compilacion con Java 17.
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    // Version de JVM objetivo para Kotlin.
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+// Dependencias del proyecto (AndroidX, Retrofit, Gson y corrutinas).
+dependencies {
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.2.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    // Librerias para consumo de API REST y manejo asincrono.
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+}
+Archivo: build.gradle.kts
+Ruta: build.gradle.kts
+Descripcion: Configuracion de plugins del proyecto, con comentarios didacticos.
+// Declaracion de plugins a nivel de proyecto (se aplican en los modulos).
+plugins {
+    id("com.android.application") version "8.7.2" apply false
+    id("org.jetbrains.kotlin.android") version "2.0.21" apply false
+}
+Archivo: settings.gradle.kts
+Ruta: settings.gradle.kts
+Descripcion: Configuracion de repositorios y modulos del proyecto, con comentarios didacticos.
+// Configuracion de repositorios para la resolucion de plugins.
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+// Configuracion de repositorios para dependencias del proyecto.
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+// Nombre del proyecto y modulos incluidos.
+rootProject.name = "codigoKotlin"
+include(":app")
