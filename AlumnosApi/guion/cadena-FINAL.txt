@@ -1,0 +1,11 @@
+Instalar:
+EntityFrameworkCore.SqlServer
+EntityFrameworkCore.Tools
+
+Install-Package Microsoft.EntityFrameworkCore.SqlServer -Version 10.0.0
+
+Install-Package Microsoft.EntityFrameworkCore.Tools -Version 10.0.0 ƒ
+
+Scaffold: ƒ
+
+Scaffold-DbContext "Server=(localdb)\MSSQLLocalDB;Database=ALUMNOS;Trusted_Connection=True;TrustServerCertificate=True;" Microsoft.EntityFrameworkCore.SqlServer -OutputDir ScaffoldModels -ContextDir ScaffoldContext -Context AlumnosScaffoldContext -Tables ALUMNO,ASIGNATURA,NOTAS -NoOnConfiguring

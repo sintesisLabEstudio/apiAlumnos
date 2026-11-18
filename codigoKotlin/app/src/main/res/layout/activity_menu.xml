@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout del menu principal con logo, datos del trabajo y botones de navegacion. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <!-- Contenedor vertical desplazable para todo el contenido del menu. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+        <!-- Logotipo institucional. -->
+        <ImageView
+            android:id="@+id/imgLogo"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:layout_marginBottom="8dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="Logo"
+            android:scaleType="fitCenter"
+            android:src="@drawable/logo" />
+        <!-- Datos informativos del trabajo. -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="INSTITUTO PROFESIONAL VIRGINIO GOMEZ"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Asignatura: Taller de Nuevas Tecnologías" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Trabajo: Trabajo décimas 2" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Profesor: Roberto Andres Cisterna Figueroa" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:text="Estudiantes: Ignacio Gaete Caamaño, Jorge Vera Videla" />
+    <!-- Botones de acceso a las funciones de ingreso. -->
+    <Button
+        android:id="@+id/btnAlumno"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ingresar alumno" />
+    <Button
+        android:id="@+id/btnAsignatura"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ingresar asignatura" />
+    <Button
+        android:id="@+id/btnNota"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ingresar nota" />
+    <!-- Botones de acceso a listados, edicion y resumen. -->
+    <Button
+        android:id="@+id/btnListado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Listar notas" />
+    <Button
+        android:id="@+id/btnListaAlumnos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Listar alumnos" />
+    <Button
+        android:id="@+id/btnListaAsignaturas"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Listar asignaturas" />
+    <Button
+        android:id="@+id/btnEditarAlumno"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Editar alumno" />
+    <Button
+        android:id="@+id/btnEditarAsignatura"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Editar asignatura" />
+    <Button
+        android:id="@+id/btnEditarNota"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Editar nota" />
+        <Button
+            android:id="@+id/btnResumen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Resumen" />
+        <!-- Boton para cerrar la aplicacion. -->
+        <Button
+            android:id="@+id/btnSalir"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🚪 Salir" />
+    </LinearLayout>
+</ScrollView>

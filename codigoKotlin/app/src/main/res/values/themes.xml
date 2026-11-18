@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Definicion del tema oscuro general aplicado a toda la app. -->
+<resources>
+    <!-- Tema basado en AppCompat con fondo gris oscuro y textos claros. -->
+    <style name="Theme.Notas" parent="Theme.AppCompat">
+        <!-- Colores base del tema. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <!-- Colores de fondo de ventanas y vistas. -->
+        <item name="android:windowBackground">@color/colorBackground</item>
+        <item name="android:colorBackground">@color/colorBackground</item>
+        <!-- Colores de texto para mejorar legibilidad en modo oscuro. -->
+        <item name="android:textColor">@color/colorOnBackground</item>
+        <item name="android:textColorPrimary">@color/colorOnBackground</item>
+        <item name="android:textColorSecondary">#BDBDBD</item>
+        <item name="android:textColorHint">#9E9E9E</item>
+        <item name="android:editTextColor">@color/colorOnBackground</item>
+    </style>
+</resources>

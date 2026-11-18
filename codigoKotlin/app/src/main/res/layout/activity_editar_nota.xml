@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout para editar la nota correspondiente a la seleccion actual. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <!-- Contenedor principal desplazable. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+        <!-- Barra superior con boton para volver al menu. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/btnHome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⌂" />
+        </LinearLayout>
+        <!-- Selector de alumno. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Alumno" />
+        <Spinner
+            android:id="@+id/spAlumno"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <!-- Selector de asignatura. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Asignatura" />
+        <Spinner
+            android:id="@+id/spAsignatura"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <!-- Selector del numero de nota y campo de valor. -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Número de nota (1 a 3)" />
+        <Spinner
+            android:id="@+id/spNumero"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <EditText
+            android:id="@+id/etNota"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Nota (1.0 a 7.0)"
+            android:inputType="numberDecimal" />
+        <!-- Accion de edicion y mensaje de resultado. -->
+        <Button
+            android:id="@+id/btnEditarNota"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Editar nota" />
+        <TextView
+            android:id="@+id/tvResultado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textSize="16sp" />
+    </LinearLayout>
+</ScrollView>

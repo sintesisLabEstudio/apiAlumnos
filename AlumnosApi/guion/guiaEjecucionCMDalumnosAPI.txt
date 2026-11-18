@@ -1,0 +1,84 @@
+# GUÍA Y COMANDOS COMPLETOS PARA EJECUTAR LA API SIN VISUAL STUDIO
+# Se usa UNA SOLA instancia de SQL Server: LocalDB, la misma de appsettings.json.
+# No adjuntar el .mdf a SQLEXPRESS: dos instancias abriendo el mismo archivo se bloquean entre sí.
+
+# 1. Verificar los archivos físicos de la base de datos en la carpeta BD
+dir "C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD"
+
+# 2. Crear la base de datos ALUMNOS con el script original del profesor (NO modificar el script)
+sqlcmd -S "(localdb)\MSSQLLocalDB" -E -i "C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\Data\ALUMNOS.sql"
+
+# 3. Comprobar la existencia de las tablas (ALUMNO, ASIGNATURA, NOTAS) en la base de datos ALUMNOS
+sqlcmd -S "(localdb)\MSSQLLocalDB" -E -d ALUMNOS -Q "SELECT name FROM sys.tables"
+
+# 4. Comprobar el contenido de registros en la tabla ALUMNO
+sqlcmd -S "(localdb)\MSSQLLocalDB" -E -d ALUMNOS -Q "SELECT COUNT(*) FROM ALUMNO"
+
+# 5. (Opcional) Crear un respaldo de seguridad (.bak)
+sqlcmd -S "(localdb)\MSSQLLocalDB" -E -Q "BACKUP DATABASE ALUMNOS TO DISK='C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD\respaldo_ALUMNOS.bak'"
+
+# 6. Moverse al directorio de la API y ejecutarla en HTTP por el puerto 50555
+# El puerto 50555 es el que consume la app Android (RetrofitClient.BASE_URL).
+# No se necesita certificado HTTPS porque UseHttpsRedirection está desactivado en Program.cs.
+cd C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi
+
+dotnet run --urls http://localhost:50555
+
+Abre 
+http://localhost:50555/swagger
+
+# CASO DE USO (registro histórico de la ejecución anterior; ya no se usa SQLEXPRESS)
+
+levante API  12:44 p. m. 14/11/2026
+
+Windows PowerShell
+Copyright (C) Microsoft Corporation. Todos los derechos reservados.
+
+Prueba la nueva tecnología PowerShell multiplataforma https://aka.ms/pscore6
+
+PS C:\Users\notebook> ollama run qwen2.5-coder:1.5b "Responde OK."
+OK
+
+PS C:\Users\notebook> cd C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD
+PS C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD> icacls "C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD" /grant 'NT SERVICE\MSSQL$SQLEXPRESS:(OI)(CI)F'
+archivo procesado: C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD
+Se procesaron correctamente 1 archivos; error al procesar 0 archivos
+PS C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD>
+>> sqlcmd -S localhost\SQLEXPRESS -E -Q "CREATE DATABASE baseDatosAlumnos ON (FILENAME='C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD\baseDatosAlumnos.mdf'), (FILENAME='C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD\baseDatosAlumnos_log.ldf') FOR ATTACH"
+Msg 1801, Level 16, State 3, Server programador\SQLEXPRESS, Line 1
+Database 'baseDatosAlumnos' already exists. Choose a different database name.
+PS C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD> sqlcmd -S localhost\SQLEXPRESS -E -d baseDatosAlumnos -Q "SELECT name FROM sys.tables
+>> ^C
+PS C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD> sqlcmd -S localhost\SQLEXPRESS -E -d baseDatosAlumnos -Q "SELECT COUNT(*) FROM ALUMNOS
+>> ^C
+PS C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD> sqlcmd -S localhost\SQLEXPRESS -E -d baseDatosAlumnos -Q "SELECT COUNT(*) FROM ALUMNOS"
+
+-----------
+          3
+
+(1 rows affected)
+PS C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD> sqlcmd -S localhost\SQLEXPRESS -E -d baseDatosAlumnos -Q "SELECT name FROM sys.tables"
+name                                                                                          
+--------------------------------------------------------------------------------------------------------------------------------
+__EFMigrationsHistory                                                                         
+ALUMNOS                                                                                       
+ASIGNATURAS                                                                                   
+NOTAS                                                                                         
+
+(4 rows affected)
+PS C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\BD> cd..
+PS C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi> dotnet dev-certs https --trust
+Trusting the HTTPS development certificate was requested. A confirmation prompt will be displayed if the certificate was not previously trusted. Click yes on the prompt to trust the certificate.
+Successfully trusted the existing HTTPS certificate.
+PS C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi>
+>> dotnet run --urls https://localhost:50554
+Usando la configuración de inicio de C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi\Properties\launchSettings.json...
+EXEC : warning no se encontró el proceso "AlumnosApi.exe".
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: https://localhost:50554
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\desarrollo\tnt\notasAlumnoAsignatura\AlumnosApi

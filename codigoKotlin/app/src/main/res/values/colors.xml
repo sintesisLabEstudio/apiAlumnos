@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paleta de colores del tema oscuro de la aplicacion. -->
+<resources>
+    <!-- Colores principales de la interfaz. -->
+    <color name="colorPrimary">#424242</color>
+    <color name="colorPrimaryDark">#303030</color>
+    <color name="colorAccent">#80CBC4</color>
+    <!-- Colores de fondo y superficies en gris oscuro. -->
+    <color name="colorBackground">#303030</color>
+    <color name="colorSurface">#3A3A3A</color>
+    <!-- Colores de texto sobre fondos oscuros. -->
+    <color name="colorOnBackground">#E0E0E0</color>
+    <color name="colorOnSurface">#E0E0E0</color>
+</resources>

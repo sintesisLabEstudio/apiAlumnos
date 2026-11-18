@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Manifiesto principal: declara permisos, tema y actividades de la aplicacion. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permiso para realizar solicitudes HTTP a la API. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Configuracion general de la aplicacion Android. -->
+    <application
+        android:allowBackup="true"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:label="Notas"
+        android:theme="@style/Theme.Notas"
+        android:usesCleartextTraffic="true">
+        <!-- Actividad inicial (menu principal) que lanza la aplicacion. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- Pantallas para ingresar datos. -->
+        <activity android:name=".AlumnoActivity" />
+        <activity android:name=".AsignaturaActivity" />
+        <activity android:name=".NotaActivity" />
+        <!-- Pantallas para consultar listados y resumen. -->
+        <activity android:name=".ListadoActivity" />
+	<activity android:name=".ListaAlumnosActivity" android:exported="false" />
+        <activity android:name=".ListaAsignaturasActivity" android:exported="false" />
+        <!-- Pantallas adicionales de edicion y resumen. -->
+        <activity android:name=".EditarNotaActivity" android:exported="false" />
+        <activity android:name=".ResumenActivity" android:exported="false" />
+    </application>
+</manifest>
